@@ -1,0 +1,167 @@
+<!-- frontend/cart.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shopping Cart - ShopHub</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <style>
+    .cart-container { display: flex; gap: 40px; margin: 40px 0; flex-wrap: wrap; }
+    .cart-items { flex: 2; }
+    .cart-summary { flex: 1; background: white; padding: 24px; border-radius: 12px; box-shadow: var(--shadow); align-self: flex-start; }
+    .cart-item { display: flex; gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--gray-light); align-items: center; flex-wrap: wrap; }
+    .cart-item img { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; }
+    .cart-item .details { flex: 1; }
+    .cart-item .details h4 { margin-bottom: 4px; }
+    .cart-item .qty-control { display: flex; align-items: center; gap: 8px; }
+    .cart-item .qty-control button { width: 30px; height: 30px; border: 1px solid var(--gray-light); background: white; border-radius: 6px; cursor: pointer; }
+    .cart-item .qty-control input { width: 50px; text-align: center; border: 1px solid var(--gray-light); border-radius: 6px; padding: 4px; }
+    .cart-item .remove-btn { color: var(--secondary); cursor: pointer; background: none; border: none; font-size: 1.2rem; }
+    .empty-cart { text-align: center; padding: 60px 0; }
+    .empty-cart i { font-size: 4rem; color: var(--gray-light); margin-bottom: 16px; }
+    @media (max-width: 768px) { .cart-container { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <nav class="navbar" id="navbar">...</nav>
+
+  <div class="container">
+    <h1>Shopping Cart</h1>
+    <div class="cart-container">
+      <div class="cart-items" id="cartItems">
+        <div class="loading-spinner"><div class="spinner"></div></div>
+      </div>
+      <div class="cart-summary" id="cartSummary">
+        <h3>Order Summary</h3>
+        <p><span>Subtotal:</span> <strong id="subtotal">0.00</strong></p>
+        <p><span>Shipping:</span> <strong id="shipping">0.00</strong></p>
+        <p><span>Tax (10%):</span> <strong id="tax">0.00</strong></p>
+        <hr />
+        <p style="font-size:1.4rem;"><strong>Total: <span id="total">0.00</span></strong></p>
+        <button class="btn btn-primary" id="checkoutBtn" style="width:100%;">Proceed to Checkout</button>
+        <div style="margin-top:16px;">
+          <label>Coupon Code: <input type="text" id="couponInput" placeholder="Enter code" style="width:100%;padding:8px;border:2px solid var(--gray-light);border-radius:8px;" /></label>
+          <button class="btn btn-outline btn-sm" id="applyCoupon" style="margin-top:8px;">Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">...</footer>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/cart.js"></script>
+  <script>
+    let cartData = null;
+
+    async function loadCart() {
+      try {
+        const cart = await apiRequest('/cart');
+        cartData = cart;
+        const container = document.getElementById('cartItems');
+        if (!cart.items || cart.items.length === 0) {
+          container.innerHTML = `<div class="empty-cart"><i class="fas fa-shopping-bag"></i><h2>Your cart is empty</h2><a href="products.html" class="btn btn-primary">Start Shopping</a></div>`;
+          updateSummary(0);
+          return;
+        }
+        container.innerHTML = cart.items.map(item => {
+          const p = item.productId;
+          return `
+            <div class="cart-item" data-id="${item._id}">
+              <img src="${p.images?.[0] || 'https://via.placeholder.com/80'}" alt="${p.title}" />
+              <div class="details">
+                <h4>${p.title}</h4>
+                <p>$${p.price.toFixed(2)} each</p>
+              </div>
+              <div class="qty-control">
+                <button class="dec-btn">-</button>
+                <input type="number" class="qty-input" value="${item.quantity}" min="1" max="${p.stock || 99}" />
+                <button class="inc-btn">+</button>
+              </div>
+              <span style="font-weight:600;">$${(p.price * item.quantity).toFixed(2)}</span>
+              <button class="remove-btn" data-id="${item._id}"><i class="fas fa-trash-alt"></i></button>
+            </div>
+          `;
+        }).join('');
+
+        // Attach events
+        container.querySelectorAll('.cart-item').forEach(itemEl => {
+          const id = itemEl.dataset.id;
+          const qtyInput = itemEl.querySelector('.qty-input');
+          const dec = itemEl.querySelector('.dec-btn');
+          const inc = itemEl.querySelector('.inc-btn');
+          const remove = itemEl.querySelector('.remove-btn');
+
+          const updateQty = async (newQty) => {
+            newQty = Math.max(1, Math.min(99, newQty));
+            qtyInput.value = newQty;
+            try {
+              await apiRequest(`/cart/${id}`, { method: 'PUT', body: JSON.stringify({ quantity: newQty }) });
+              loadCart(); // refresh
+            } catch (err) {
+              alert('Error updating cart');
+            }
+          };
+
+          dec.addEventListener('click', () => updateQty(parseInt(qtyInput.value) - 1));
+          inc.addEventListener('click', () => updateQty(parseInt(qtyInput.value) + 1));
+          qtyInput.addEventListener('change', () => updateQty(parseInt(qtyInput.value)));
+          remove.addEventListener('click', async () => {
+            if (confirm('Remove item?')) {
+              await apiRequest(`/cart/${id}`, { method: 'DELETE' });
+              loadCart();
+              updateCartCount();
+            }
+          });
+        });
+
+        // Recalculate totals
+        const total = cart.items.reduce((sum, item) => sum + item.productId.price * item.quantity, 0);
+        updateSummary(total);
+      } catch (err) {
+        if (err.message.includes('401')) {
+          document.getElementById('cartItems').innerHTML = `<div class="empty-cart"><p>Please login to view your cart.</p><a href="login.html" class="btn btn-primary">Login</a></div>`;
+        } else {
+          document.getElementById('cartItems').innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
+        }
+      }
+    }
+
+    function updateSummary(total) {
+      const shipping = total > 50 ? 0 : 5.99;
+      const tax = total * 0.10;
+      const grand = total + shipping + tax;
+      document.getElementById('subtotal').textContent = `$${total.toFixed(2)}`;
+      document.getElementById('shipping').textContent = `$${shipping.toFixed(2)}`;
+      document.getElementById('tax').textContent = `$${tax.toFixed(2)}`;
+      document.getElementById('total').textContent = `$${grand.toFixed(2)}`;
+    }
+
+    // Coupon (demo)
+    document.getElementById('applyCoupon')?.addEventListener('click', () => {
+      const code = document.getElementById('couponInput').value.trim().toUpperCase();
+      if (code === 'SAVE10') {
+        alert('10% discount applied! (demo)');
+        // In real app, recalc total with discount
+      } else {
+        alert('Invalid coupon code.');
+      }
+    });
+
+    // Checkout button
+    document.getElementById('checkoutBtn')?.addEventListener('click', () => {
+      if (!cartData || !cartData.items || cartData.items.length === 0) {
+        alert('Your cart is empty.');
+        return;
+      }
+      window.location.href = 'checkout.html';
+    });
+
+    loadCart();
+  </script>
+</body>
+</html>

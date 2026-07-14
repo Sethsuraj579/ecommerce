@@ -1,0 +1,146 @@
+<!-- frontend/product.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Details - ShopHub</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <style>
+    .product-detail { display: flex; gap: 40px; margin: 40px 0; align-items: flex-start; }
+    .product-detail .gallery { flex: 1; }
+    .product-detail .gallery img { width: 100%; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    .product-detail .info { flex: 1; }
+    .product-detail .info h1 { font-size: 2rem; margin-bottom: 12px; }
+    .product-detail .info .price { font-size: 1.8rem; font-weight: 700; color: var(--primary); }
+    .product-detail .info .original { font-size: 1.2rem; color: var(--gray); text-decoration: line-through; margin-left: 12px; }
+    .product-detail .info .rating { margin: 12px 0; }
+    .product-detail .info .description { color: var(--gray); line-height: 1.8; margin: 16px 0; }
+    .product-detail .info .stock { font-weight: 600; margin: 8px 0; }
+    .product-detail .info .qty-selector { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+    .product-detail .info .qty-selector input { width: 60px; padding: 8px; text-align: center; border: 2px solid var(--gray-light); border-radius: 8px; font-size: 1rem; }
+    .product-detail .info .actions { display: flex; gap: 16px; flex-wrap: wrap; }
+    @media (max-width: 768px) { .product-detail { flex-direction: column; } }
+    #relatedProducts .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <!-- Navbar (reuse same as index) -->
+  <nav class="navbar" id="navbar"> ... </nav> <!-- copy from index.html or use a shared component -->
+
+  <div class="container">
+    <div class="product-detail" id="productDetail">
+      <div class="gallery">
+        <img id="productImage" src="" alt="Product" />
+      </div>
+      <div class="info">
+        <h1 id="productTitle">Loading...</h1>
+        <div class="rating" id="productRating">★★★★★ (0)</div>
+        <div>
+          <span class="price" id="productPrice">0.00</span>
+          <span class="original" id="productOriginal"></span>
+        </div>
+        <p class="description" id="productDesc">Loading...</p>
+        <p class="stock" id="productStock">Stock: 0</p>
+        <div class="qty-selector">
+          <label>Quantity:</label>
+          <input type="number" id="qtyInput" value="1" min="1" max="99" />
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="addToCartBtn"><i class="fas fa-shopping-bag"></i> Add to Cart</button>
+          <button class="btn btn-secondary" id="buyNowBtn"><i class="fas fa-bolt"></i> Buy Now</button>
+          <button class="btn btn-outline" id="wishlistBtn"><i class="fas fa-heart"></i> Wishlist</button>
+        </div>
+      </div>
+    </div>
+
+    <section id="relatedProducts">
+      <h2>Related Products</h2>
+      <div class="product-grid" id="relatedGrid"></div>
+    </section>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer"> ... </footer>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/cart.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const productId = urlParams.get('id');
+
+    async function loadProduct() {
+      if (!productId) {
+        document.getElementById('productDetail').innerHTML = '<p>Product not found.</p>';
+        return;
+      }
+      try {
+        const product = await apiRequest(`/products/${productId}`);
+        document.getElementById('productImage').src = product.images?.[0] || 'https://via.placeholder.com/400';
+        document.getElementById('productTitle').textContent = product.title;
+        document.getElementById('productPrice').textContent = `$${product.price.toFixed(2)}`;
+        if (product.discount && product.discount > 0) {
+          const orig = product.price / (1 - product.discount/100);
+          document.getElementById('productOriginal').textContent = `$${orig.toFixed(2)}`;
+        }
+        const stars = '★'.repeat(Math.floor(product.rating || 0)) + '☆'.repeat(5 - Math.floor(product.rating || 0));
+        document.getElementById('productRating').innerHTML = `${stars} (${product.reviews?.length || 0} reviews)`;
+        document.getElementById('productDesc').textContent = product.description || 'No description available.';
+        document.getElementById('productStock').textContent = `Stock: ${product.stock || 0}`;
+        // Related products (exclude current)
+        const all = await apiRequest('/products?limit=6');
+        const related = all.products.filter(p => p._id !== productId && p.category === product.category).slice(0,4);
+        const grid = document.getElementById('relatedGrid');
+        if (related.length === 0) grid.innerHTML = '<p>No related products found.</p>';
+        else grid.innerHTML = related.map(p => `
+          <div class="product-card">
+            <img src="${p.images?.[0] || 'https://via.placeholder.com/200'}" alt="${p.title}">
+            <h4>${p.title}</h4>
+            <p>$${p.price.toFixed(2)}</p>
+            <a href="product.html?id=${p._id}" class="btn btn-primary btn-sm">View</a>
+          </div>
+        `).join('');
+      } catch (err) {
+        document.getElementById('productDetail').innerHTML = `<p style="color:red;">Error loading product: ${err.message}</p>`;
+      }
+    }
+
+    // Add to cart
+    document.getElementById('addToCartBtn')?.addEventListener('click', async () => {
+      const qty = parseInt(document.getElementById('qtyInput').value) || 1;
+      try {
+        await apiRequest('/cart', { method: 'POST', body: JSON.stringify({ productId, quantity: qty }) });
+        alert('Added to cart!');
+        updateCartCount();
+      } catch (err) {
+        alert('Please login first.');
+        window.location.href = 'login.html';
+      }
+    });
+
+    // Buy Now → go to checkout with this product
+    document.getElementById('buyNowBtn')?.addEventListener('click', () => {
+      // We'll add to cart then redirect to checkout
+      const qty = parseInt(document.getElementById('qtyInput').value) || 1;
+      apiRequest('/cart', { method: 'POST', body: JSON.stringify({ productId, quantity: qty }) })
+        .then(() => window.location.href = 'checkout.html')
+        .catch(() => window.location.href = 'login.html');
+    });
+
+    // Wishlist toggle (use existing wishlist logic)
+    document.getElementById('wishlistBtn')?.addEventListener('click', async () => {
+      // Implement wishlist similar to product card – we'll use localStorage
+      let wishlist = JSON.parse(localStorage.getItem('wishlist')) || [];
+      const idx = wishlist.indexOf(productId);
+      if (idx > -1) { wishlist.splice(idx, 1); alert('Removed from wishlist'); }
+      else { wishlist.push(productId); alert('Added to wishlist ❤️'); }
+      localStorage.setItem('wishlist', JSON.stringify(wishlist));
+    });
+
+    loadProduct();
+  </script>
+</body>
+</html>

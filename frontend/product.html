@@ -1,0 +1,90 @@
+<!-- frontend/product.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Details - ShopHub</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <style>
+    .product-detail { display: flex; gap: 40px; margin: 40px 0; align-items: flex-start; }
+    .product-detail .gallery { flex: 1; }
+    .product-detail .gallery img { width: 100%; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    .product-detail .info { flex: 1; }
+    .product-detail .info h1 { font-size: 2rem; margin-bottom: 12px; }
+    .product-detail .info .price { font-size: 1.8rem; font-weight: 700; color: var(--primary); }
+    .product-detail .info .original { font-size: 1.2rem; color: var(--gray); text-decoration: line-through; margin-left: 12px; }
+    .product-detail .info .rating { margin: 12px 0; }
+    .product-detail .info .description { color: var(--gray); line-height: 1.8; margin: 16px 0; }
+    .product-detail .info .stock { font-weight: 600; margin: 8px 0; }
+    .product-detail .info .qty-selector { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+    .product-detail .info .qty-selector input { width: 60px; padding: 8px; text-align: center; border: 2px solid var(--gray-light); border-radius: 8px; font-size: 1rem; }
+    .product-detail .info .actions { display: flex; gap: 16px; flex-wrap: wrap; }
+    @media (max-width: 768px) { .product-detail { flex-direction: column; } }
+    #relatedProducts .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <!-- Navbar – copy from your index.html -->
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <a href="index.html" class="nav-brand">Shop<span>Hub</span></a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="products.html">Products</a></li>
+        <li><a href="#">Reviews</a></li>
+        <li><a href="#" id="adminLink" style="display:none;">Admin</a></li>
+      </ul>
+      <div class="nav-icons">
+        <button class="icon-btn" id="searchToggle"><i class="fas fa-search"></i></button>
+        <button class="icon-btn" id="cartBtn"><i class="fas fa-shopping-bag"></i><span class="cart-badge" id="cartBadge">0</span></button>
+        <button class="icon-btn" id="authBtn"><i class="fas fa-user"></i></button>
+        <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="product-detail" id="productDetail">
+      <div class="gallery">
+        <img id="productImage" src="" alt="Product" />
+      </div>
+      <div class="info">
+        <h1 id="productTitle">Loading...</h1>
+        <div class="rating" id="productRating">★★★★★ (0)</div>
+        <div>
+          <span class="price" id="productPrice">$0.00</span>
+          <span class="original" id="productOriginal"></span>
+        </div>
+        <p class="description" id="productDesc">Loading...</p>
+        <p class="stock" id="productStock">Stock: 0</p>
+        <div class="qty-selector">
+          <label>Quantity:</label>
+          <input type="number" id="qtyInput" value="1" min="1" max="99" />
+          <input type="hidden" id="productId" />
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="addToCartBtn"><i class="fas fa-shopping-bag"></i> Add to Cart</button>
+          <button class="btn btn-secondary" id="buyNowBtn"><i class="fas fa-bolt"></i> Buy Now</button>
+          <button class="btn btn-outline" id="wishlistBtn"><i class="fas fa-heart"></i> Wishlist</button>
+        </div>
+      </div>
+    </div>
+
+    <section id="relatedProducts">
+      <h2>Related Products</h2>
+      <div class="product-grid" id="relatedGrid"></div>
+    </section>
+  </div>
+
+  <!-- Footer – copy from your index.html -->
+  <footer class="footer">...</footer>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/product.js"></script>
+</body>
+</html>
